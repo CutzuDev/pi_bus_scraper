@@ -295,16 +295,18 @@ const server = Bun.serve({
             </div>
             <script>
                 let lineMetadata = null;
+                let lineMetadataIntors = null;
                 let selectedStation = null;
                 let selectedDirection = 'dus';
 
                 function renderStations() {
                     if (!lineMetadata) return;
                     
-                    // Get stations in the right order based on direction
-                    const stations = selectedDirection === 'intors' 
-                        ? [...lineMetadata.stations].reverse() 
-                        : lineMetadata.stations;
+                    // Get the appropriate metadata based on direction
+                    const currentMetadata = selectedDirection === 'intors' ? lineMetadataIntors : lineMetadata;
+                    if (!currentMetadata) return;
+                    
+                    const stations = currentMetadata.stations;
                     
                     const stationList = document.getElementById('stationList');
                     stationList.innerHTML = stations.map((station, index) => 
@@ -334,26 +336,56 @@ const server = Bun.serve({
                     loading.classList.remove('hidden');
 
                     try {
-                        const response = await fetch('/api/scrape-line', {
+                        // Ensure we have both dus and intors URLs
+                        const dusUrl = masterUrl.includes('-intors.html') 
+                            ? masterUrl.replace('-intors.html', '-dus.html')
+                            : masterUrl;
+                        const intorsUrl = dusUrl.replace('-dus.html', '-intors.html');
+
+                        // Scrape DUS direction
+                        const responseDus = await fetch('/api/scrape-line', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ masterUrl })
+                            body: JSON.stringify({ masterUrl: dusUrl })
                         });
 
-                        if (!response.ok) {
-                            const error = await response.json();
-                            throw new Error(error.message || 'Failed to scrape line');
+                        if (!responseDus.ok) {
+                            const error = await responseDus.json();
+                            throw new Error(error.message || 'Failed to scrape dus direction');
                         }
 
-                        lineMetadata = await response.json();
+                        lineMetadata = await responseDus.json();
+                        lineMetadata.masterUrl = dusUrl;
                         
-                        // Store the original master URL
-                        lineMetadata.masterUrl = masterUrl;
+                        // Scrape INTORS direction
+                        const responseIntors = await fetch('/api/scrape-line', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ masterUrl: intorsUrl })
+                        });
+
+                        if (responseIntors.ok) {
+                            lineMetadataIntors = await responseIntors.json();
+                            lineMetadataIntors.masterUrl = intorsUrl;
+                            console.log('Intors data fetched:', lineMetadataIntors);
+                        } else {
+                            // If intors fails, use reversed dus as fallback
+                            console.warn('Failed to fetch intors, using reversed dus as fallback');
+                            lineMetadataIntors = {
+                                lineName: lineMetadata.lineName,
+                                stations: [...lineMetadata.stations].reverse(),
+                                masterUrl: intorsUrl
+                            };
+                        }
+                        
+                        console.log('Dus stations:', lineMetadata.stations.length, lineMetadata.stations);
+                        console.log('Intors stations:', lineMetadataIntors.stations.length, lineMetadataIntors.stations);
                         
                         // Show step 2
                         document.getElementById('lineInfo').innerHTML = 
                             \`<strong>✅ Linie găsită:</strong> \${lineMetadata.lineName}<br>
-                            <strong>📍 Stații:</strong> \${lineMetadata.stations.length} stații găsite\`;
+                            <strong>📍 Stații Dus:</strong> \${lineMetadata.stations.length} • <strong>Întors:</strong> \${lineMetadataIntors.stations.length}<br>
+                            <small style="color: #666;">Dus URL: \${dusUrl}<br>Întors URL: \${intorsUrl}</small>\`;
                         
                         // Populate stations
                         renderStations();
@@ -376,17 +408,14 @@ const server = Bun.serve({
                     });
                     document.querySelector(\`.direction-option[data-direction="\${direction}"]\`).classList.add('selected');
                     
-                    // Re-render stations in the correct order
+                    // Re-render stations with the appropriate metadata
                     renderStations();
                 }
 
                 function selectStation(index) {
-                    // Get the current stations array (reversed or not)
-                    const stations = selectedDirection === 'intors' 
-                        ? [...lineMetadata.stations].reverse() 
-                        : lineMetadata.stations;
-                    
-                    selectedStation = stations[index];
+                    // Get the current metadata based on direction
+                    const currentMetadata = selectedDirection === 'intors' ? lineMetadataIntors : lineMetadata;
+                    selectedStation = currentMetadata.stations[index];
                     
                     document.querySelectorAll('.station-item').forEach(el => {
                         el.classList.remove('selected');
@@ -413,14 +442,21 @@ const server = Bun.serve({
                             stationUrl = stationUrl.replace('-dus.html', '-intors.html');
                         }
 
+                        // Get direction labels from first and last stations
+                        const firstStation = lineMetadata.stations[0].name;
+                        const lastStation = lineMetadata.stations[lineMetadata.stations.length - 1].name;
+                        
+                        const directionFrom = selectedDirection === 'dus' ? firstStation : lastStation;
+                        const directionTo = selectedDirection === 'dus' ? lastStation : firstStation;
+
                         // Create route object
                         const routeData = {
                             id: \`\${selectedStation.route}-\${selectedDirection}\`,
                             name: lineMetadata.lineName,
                             stationName: selectedStation.name,
                             url: stationUrl,
-                            directionFrom: selectedDirection === 'dus' ? 'Dus' : 'Întors',
-                            directionTo: selectedDirection === 'dus' ? 'Dus' : 'Întors'
+                            directionFrom: directionFrom,
+                            directionTo: directionTo
                         };
 
                         const response = await fetch('/api/routes', {
