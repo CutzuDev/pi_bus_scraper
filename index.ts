@@ -190,7 +190,7 @@ const server = Bun.serve({
             <style>
                 * { margin: 0; padding: 0; box-sizing: border-box; } body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #6366f1; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; } .container { background: white; border-radius: 20px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2); max-width: 800px; width: 100%; padding: 40px; animation: slideIn 0.5s ease-out; } @keyframes slideIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } } .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #6366f1; padding-bottom: 20px; } .header h1 { color: #333; font-size: 2.5em; margin-bottom: 10px; } .route-badge { display: inline-block; background: #6366f1; color: white; padding: 8px 20px; border-radius: 25px; font-size: 1.2em; font-weight: bold; margin-bottom: 10px; } .direction-info { color: #6366f1; font-size: 1.1em; margin-top: 8px; font-weight: 500; } .direction-info::before { content: "🚏 "; } .location { color: #666; font-size: 1.3em; margin-top: 10px; } .location::before { content: "📍 "; } .timestamp { color: #888; font-size: 0.9em; margin-top: 10px; } .cache-badge { display: inline-block; background: #10b981; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.8em; margin-left: 10px; } .times-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 15px; margin-top: 30px; } .time-card { background: #6366f1; color: white; padding: 20px; border-radius: 12px; text-align: center; font-size: 1.4em; font-weight: bold; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3); transition: transform 0.2s, box-shadow 0.2s; cursor: pointer; } .time-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(99, 102, 241, 0.5); } .time-card.next-bus { background: #ef4444; box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4); animation: pulse 2s infinite; } @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } } .no-times { text-align: center; color: #666; font-size: 1.2em; padding: 40px; } .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 2px solid #eee; color: #888; } .btn { background: #6366f1; color: white; border: none; padding: 12px 30px; border-radius: 25px; font-size: 1em; font-weight: bold; cursor: pointer; margin: 10px 5px; transition: background 0.3s; text-decoration: none; display: inline-block; } .btn:hover { background: #4f46e5; } @media (max-width: 600px) { .container { padding: 20px; } .header h1 { font-size: 1.8em; } .times-grid { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px; } .time-card { font-size: 1.2em; padding: 15px; } }
             </style></head><body><div class="container"><div class="header"><h1>🚌 RATBV Bus Times</h1><div class="route-badge">${route.name}</div>${route.directionFrom && route.directionTo ? `<div class="direction-info">${route.directionFrom} → ${route.directionTo}</div>` : ''}<div class="location">${route.stationName}</div><div class="timestamp">Actualizat: ${currentTime}${isCached ? ` <span class="cache-badge">📦 Cache (${Math.round(cacheAge / 1000)}s)</span>` : ' <span class="cache-badge" style="background: #ef4444;">🔴 Live</span>'}</div></div>${busTimes.length > 0 ? `<div class="times-grid">${busTimes.map((time, index) => { const [hour, minute] = time.split(':'); const now = new Date(); const busTime = new Date(); busTime.setHours(parseInt(hour), parseInt(minute), 0); const isNext = busTime > now && index === busTimes.findIndex(t => { const [h, m] = t.split(':'); const bt = new Date(); bt.setHours(parseInt(h), parseInt(m), 0); return bt > now; }); return `<div class="time-card ${isNext ? 'next-bus' : ''}">${time}</div>`; }).join('')}</div>` : `<div class="no-times">Nu sunt curse disponibile în acest moment.</div>`}
-            <div class="footer"><button class="btn" onclick="refreshCache()">🔄 Actualizează</button><a href="/" class="btn">🏠 Înapoi la Home</a><p style="margin-top: 15px;">Date live de la RATBV Brașov</p></div></div>
+            <div class="footer"><button class="btn" onclick="refreshCache()">🔄 Actualizează</button><a href="/" class="btn">🏠 Înapoi la Home</a><button class="btn" style="background: #ef4444;" onclick="deleteRoute()">🗑️ Șterge Rută</button><p style="margin-top: 15px;">Date live de la RATBV Brașov</p></div></div>
             <script>
                 async function refreshCache() {
                     const btn = event.target;
@@ -203,6 +203,21 @@ const server = Bun.serve({
                         alert('Eroare la actualizarea datelor');
                         btn.disabled = false;
                         btn.textContent = '🔄 Actualizează';
+                    }
+                }
+                
+                async function deleteRoute() {
+                    if (!confirm('Sigur vrei să ștergi această rută? Această acțiune nu poate fi anulată.')) return;
+                    try {
+                        const response = await fetch('/api/routes/${routeId}', { method: 'DELETE' });
+                        if (response.ok) {
+                            alert('Rută ștearsă cu succes!');
+                            window.location.href = '/';
+                        } else {
+                            alert('Eroare la ștergerea rutei');
+                        }
+                    } catch (error) {
+                        alert('Eroare la ștergerea rutei');
                     }
                 }
             </script></body></html>`;
