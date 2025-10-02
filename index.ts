@@ -39,6 +39,65 @@ async function saveRoutes(routes: Route[]): Promise<void> {
 
 // --- WEB SCRAPER (IMPROVED EFFICIENCY) ---
 
+interface StationData {
+  route: string;
+  name: string;
+  link: string;
+}
+
+interface LineMetadata {
+  lineName: string;
+  stations: StationData[];
+}
+
+async function scrapeLineMetadata(masterUrl: string): Promise<LineMetadata> {
+  const chromeOptions = new ChromeOptions();
+  chromeOptions.addArguments('--headless', '--no-sandbox', '--disable-dev-shm-usage');
+  const service = new ServiceBuilder(CHROMEDRIVER_PATH);
+  
+  const driver = await new Builder()
+    .forBrowser(Browser.CHROME)
+    .setChromeOptions(chromeOptions)
+    .setChromeService(service)
+    .build();
+
+  try {
+    await driver.get(masterUrl);
+
+    // Get line name from frame 2 (MainFrame)
+    await driver.switchTo().frame(2);
+    const linie = await driver.findElement(By.id("linia_web")).findElement(By.tagName("b")).getText();
+
+    // Switch back to main content then to frame 1 for station list
+    await driver.switchTo().defaultContent();
+    await driver.switchTo().frame(1);
+
+    // Get all station elements (both list_sus_active and list_statie)
+    const stationElements = await driver.findElements(By.css('.list_sus_active, .list_statie, .list_jos'));
+
+    const stations: StationData[] = [];
+
+    // Loop through each station and extract the name and link
+    for (const station of stationElements) {
+      const boldElement = await station.findElement(By.tagName('b'));
+      const stationName = await boldElement.getText();
+
+      // Get the <a> tag and extract the href
+      const linkElement = await station.findElement(By.tagName('a'));
+      const href = await linkElement.getAttribute('href');
+
+      const stationLinkName = stationName.toLowerCase().replace(/\./g, '').replace(/\s+/g, '-');
+      const stationData = { route: stationLinkName, name: stationName, link: href };
+      
+      stations.push(stationData);
+    }
+
+    return { lineName: linie, stations };
+  } finally {
+    await driver.quit();
+  }
+}
+
 async function scrapeBusTimes(url: string): Promise<string[]> {
   const options = new ChromeOptions();
   options.addArguments('--headless', '--no-sandbox', '--disable-dev-shm-usage');
@@ -137,14 +196,265 @@ const server = Bun.serve({
         return new Response(JSON.stringify({ success: true }));
     }
 
+    if (url.pathname === '/api/scrape-line' && method === 'POST') {
+        try {
+            const { masterUrl } = await req.json();
+            if (!masterUrl) {
+                return new Response(JSON.stringify({ message: 'masterUrl is required' }), { status: 400 });
+            }
+            
+            console.log(`Scraping line metadata from: ${masterUrl}`);
+            const metadata = await scrapeLineMetadata(masterUrl);
+            
+            return new Response(JSON.stringify(metadata), { 
+                headers: { 'Content-Type': 'application/json' } 
+            });
+        } catch (error) {
+            console.error('Error scraping line metadata:', error);
+            return new Response(JSON.stringify({ 
+                message: 'Failed to scrape line metadata',
+                error: error instanceof Error ? error.message : 'Unknown error'
+            }), { status: 500 });
+        }
+    }
+
     // --- PAGE ROUTES ---
+    if (url.pathname === '/add-line') {
+        const addLineHtml = `
+            <!DOCTYPE html><html lang="ro"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Adaugă Linie - RATBV</title>
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; } 
+                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #6366f1; min-height: 100vh; padding: 20px; } 
+                .container { max-width: 900px; margin: 0 auto; } 
+                .header { background: white; border-radius: 15px; padding: 30px; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); } 
+                h1 { color: #333; font-size: 2.5em; margin-bottom: 10px; } 
+                .nav-links { margin-top: 15px; } 
+                .nav-links a { color: #6366f1; text-decoration: none; margin-right: 20px; font-weight: 500; }
+                .step-section { background: white; border-radius: 15px; padding: 30px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); }
+                .step-section h2 { color: #333; margin-bottom: 20px; font-size: 1.5em; }
+                .form-group { margin-bottom: 20px; } 
+                label { display: block; color: #666; margin-bottom: 8px; font-weight: 500; } 
+                input, select { width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 1em; } 
+                input:focus, select:focus { outline: none; border-color: #6366f1; }
+                .btn { background: #6366f1; color: white; border: none; padding: 12px 30px; border-radius: 8px; font-size: 1em; font-weight: bold; cursor: pointer; transition: background 0.3s; } 
+                .btn:hover:not(:disabled) { background: #4f46e5; }
+                .btn:disabled { background: #9ca3af; cursor: not-loading; }
+                .btn-success { background: #10b981; }
+                .btn-success:hover:not(:disabled) { background: #059669; }
+                .hidden { display: none; }
+                .loading { display: inline-block; margin-left: 10px; }
+                .station-list { max-height: 400px; overflow-y: auto; }
+                .station-item { padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; margin-bottom: 10px; cursor: pointer; transition: all 0.2s; }
+                .station-item:hover { border-color: #6366f1; background: #f3f4f6; }
+                .station-item.selected { border-color: #6366f1; background: #eef2ff; }
+                .direction-selector { display: flex; gap: 15px; margin-bottom: 20px; }
+                .direction-option { flex: 1; padding: 15px; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; text-align: center; transition: all 0.2s; }
+                .direction-option:hover { border-color: #6366f1; }
+                .direction-option.selected { border-color: #6366f1; background: #eef2ff; font-weight: bold; }
+                .info-box { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+                .success-box { background: #d1fae5; border-left: 4px solid #10b981; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+            </style></head><body><div class="container"><div class="header"><h1>🚍 Adaugă Linie Nouă</h1><p style="color: #666;">Completează formularul pentru a adăuga o linie de autobuz</p><div class="nav-links"><a href="/dashboard">← Înapoi la Dashboard</a></div></div>
+            
+            <!-- Step 1: Input Master URL -->
+            <div class="step-section" id="step1">
+                <h2>Pasul 1: Introdu Link-ul Liniei</h2>
+                <div class="info-box">
+                    <strong>ℹ️ Exemplu:</strong> https://www.ratbv.ro/afisaje/23b-dus.html
+                </div>
+                <div class="form-group">
+                    <label>Link Master al Liniei</label>
+                    <input type="url" id="masterUrl" placeholder="https://www.ratbv.ro/afisaje/..." required>
+                </div>
+                <button class="btn" id="scrapeBtn" onclick="scrapeLine()">📡 Scanează Linia</button>
+                <span class="loading hidden" id="loading1">⏳ Se încarcă...</span>
+            </div>
+
+            <!-- Step 2: Select Station & Direction -->
+            <div class="step-section hidden" id="step2">
+                <h2>Pasul 2: Selectează Stația și Direcția</h2>
+                <div class="success-box" id="lineInfo"></div>
+                
+                <h3 style="margin-bottom: 15px;">Direcție</h3>
+                <div class="direction-selector">
+                    <div class="direction-option selected" data-direction="dus" onclick="selectDirection('dus')">
+                        <div style="font-size: 2em; margin-bottom: 5px;">➡️</div>
+                        <div>Dus (Implicit)</div>
+                    </div>
+                    <div class="direction-option" data-direction="intors" onclick="selectDirection('intors')">
+                        <div style="font-size: 2em; margin-bottom: 5px;">⬅️</div>
+                        <div>Întors</div>
+                    </div>
+                </div>
+
+                <h3 style="margin-bottom: 15px;">Selectează Stația</h3>
+                <div class="station-list" id="stationList"></div>
+                
+                <button class="btn btn-success" id="addRouteBtn" onclick="addRoute()" disabled>✅ Adaugă Rută</button>
+            </div>
+
+            </div>
+            <script>
+                let lineMetadata = null;
+                let selectedStation = null;
+                let selectedDirection = 'dus';
+
+                function renderStations() {
+                    if (!lineMetadata) return;
+                    
+                    // Get stations in the right order based on direction
+                    const stations = selectedDirection === 'intors' 
+                        ? [...lineMetadata.stations].reverse() 
+                        : lineMetadata.stations;
+                    
+                    const stationList = document.getElementById('stationList');
+                    stationList.innerHTML = stations.map((station, index) => 
+                        \`<div class="station-item" data-index="\${index}" data-route="\${station.route}" onclick="selectStation(\${index})">
+                            <strong>\${station.name}</strong><br>
+                            <small style="color: #666;">ID: \${station.route}</small>
+                        </div>\`
+                    ).join('');
+                    
+                    // Clear selection when switching direction
+                    selectedStation = null;
+                    document.getElementById('addRouteBtn').disabled = true;
+                }
+
+                async function scrapeLine() {
+                    const masterUrl = document.getElementById('masterUrl').value.trim();
+                    if (!masterUrl) {
+                        alert('Te rog introdu un link valid!');
+                        return;
+                    }
+
+                    const scrapeBtn = document.getElementById('scrapeBtn');
+                    const loading = document.getElementById('loading1');
+                    
+                    scrapeBtn.disabled = true;
+                    scrapeBtn.textContent = '⏳ Se încarcă...';
+                    loading.classList.remove('hidden');
+
+                    try {
+                        const response = await fetch('/api/scrape-line', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ masterUrl })
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.message || 'Failed to scrape line');
+                        }
+
+                        lineMetadata = await response.json();
+                        
+                        // Store the original master URL
+                        lineMetadata.masterUrl = masterUrl;
+                        
+                        // Show step 2
+                        document.getElementById('lineInfo').innerHTML = 
+                            \`<strong>✅ Linie găsită:</strong> \${lineMetadata.lineName}<br>
+                            <strong>📍 Stații:</strong> \${lineMetadata.stations.length} stații găsite\`;
+                        
+                        // Populate stations
+                        renderStations();
+
+                        document.getElementById('step2').classList.remove('hidden');
+                        
+                    } catch (error) {
+                        alert('Eroare: ' + error.message);
+                    } finally {
+                        scrapeBtn.disabled = false;
+                        scrapeBtn.textContent = '📡 Scanează Linia';
+                        loading.classList.add('hidden');
+                    }
+                }
+
+                function selectDirection(direction) {
+                    selectedDirection = direction;
+                    document.querySelectorAll('.direction-option').forEach(el => {
+                        el.classList.remove('selected');
+                    });
+                    document.querySelector(\`.direction-option[data-direction="\${direction}"]\`).classList.add('selected');
+                    
+                    // Re-render stations in the correct order
+                    renderStations();
+                }
+
+                function selectStation(index) {
+                    // Get the current stations array (reversed or not)
+                    const stations = selectedDirection === 'intors' 
+                        ? [...lineMetadata.stations].reverse() 
+                        : lineMetadata.stations;
+                    
+                    selectedStation = stations[index];
+                    
+                    document.querySelectorAll('.station-item').forEach(el => {
+                        el.classList.remove('selected');
+                    });
+                    document.querySelector(\`.station-item[data-index="\${index}"]\`).classList.add('selected');
+                    
+                    document.getElementById('addRouteBtn').disabled = false;
+                }
+
+                async function addRoute() {
+                    if (!selectedStation) {
+                        alert('Te rog selectează o stație!');
+                        return;
+                    }
+
+                    const addBtn = document.getElementById('addRouteBtn');
+                    addBtn.disabled = true;
+                    addBtn.textContent = '⏳ Se adaugă...';
+
+                    try {
+                        // Transform the station URL based on direction
+                        let stationUrl = selectedStation.link;
+                        if (selectedDirection === 'intors') {
+                            stationUrl = stationUrl.replace('-dus.html', '-intors.html');
+                        }
+
+                        // Create route object
+                        const routeData = {
+                            id: \`\${selectedStation.route}-\${selectedDirection}\`,
+                            name: lineMetadata.lineName,
+                            stationName: selectedStation.name,
+                            url: stationUrl,
+                            directionFrom: selectedDirection === 'dus' ? 'Dus' : 'Întors',
+                            directionTo: selectedDirection === 'dus' ? 'Dus' : 'Întors'
+                        };
+
+                        const response = await fetch('/api/routes', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(routeData)
+                        });
+
+                        if (response.ok) {
+                            alert('✅ Rută adăugată cu succes!');
+                            window.location.href = '/dashboard';
+                        } else {
+                            const error = await response.json();
+                            alert('Eroare: ' + error.message);
+                            addBtn.disabled = false;
+                            addBtn.textContent = '✅ Adaugă Rută';
+                        }
+                    } catch (error) {
+                        alert('Eroare la adăugarea rutei: ' + error.message);
+                        addBtn.disabled = false;
+                        addBtn.textContent = '✅ Adaugă Rută';
+                    }
+                }
+            </script></body></html>`;
+        return new Response(addLineHtml, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    }
+
     if (url.pathname === '/dashboard') {
         const routes = await loadRoutes();
         const dashboardHtml = `
             <!DOCTYPE html><html lang="ro"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Dashboard - RATBV Routes</title>
             <style>
-                * { margin: 0; padding: 0; box-sizing: border-box; } body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #6366f1; min-height: 100vh; padding: 20px; } .container { max-width: 1200px; margin: 0 auto; } .header { background: white; border-radius: 15px; padding: 30px; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); } h1 { color: #333; font-size: 2.5em; margin-bottom: 10px; } .nav-links { margin-top: 15px; } .nav-links a { color: #6366f1; text-decoration: none; margin-right: 20px; font-weight: 500; } .form-section { background: white; border-radius: 15px; padding: 30px; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); } .form-section h2 { color: #333; margin-bottom: 20px; } .form-group { margin-bottom: 20px; } label { display: block; color: #666; margin-bottom: 8px; font-weight: 500; } input { width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 1em; } input:focus { outline: none; border-color: #6366f1; } .direction-group { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: end; } .direction-group input { margin: 0; } .arrow { font-size: 1.5em; color: #6366f1; padding-bottom: 12px; text-align: center; } .btn { background: #6366f1; color: white; border: none; padding: 12px 30px; border-radius: 8px; font-size: 1em; font-weight: bold; cursor: pointer; transition: background 0.3s; } .btn:hover { background: #4f46e5; } .routes-list { background: white; border-radius: 15px; padding: 30px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); } .routes-list h2 { color: #333; margin-bottom: 20px; } .route-item { border: 2px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; } .route-info h3 { color: #333; margin-bottom: 5px; } .route-info p { color: #666; font-size: 0.9em; } .route-actions { display: flex; gap: 10px; } .btn-small { padding: 8px 16px; font-size: 0.9em; } .btn-view { background: #10b981; } .btn-view:hover { background: #059669; } .btn-delete { background: #ef4444; } .btn-delete:hover { background: #dc2626; } .empty-state { text-align: center; color: #999; padding: 40px; } .direction-badge { display: inline-block; background: #6366f1; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.75em; margin-left: 8px; }
-            </style></head><body><div class="container"><div class="header"><h1>🎛️ Dashboard</h1><p style="color: #666;">Administrează rutele de autobuze</p><div class="nav-links"><a href="/">← Înapoi la Home</a></div></div><div class="form-section"><h2>➕ Adaugă Rută Nouă</h2><form id="addRouteForm"><div class="form-group"><label>ID Rută (ex: sala-sporturilor)</label><input type="text" name="id" required placeholder="sala-sporturilor"></div><div class="form-group"><label>Nume Rută (ex: Linia 23B)</label><input type="text" name="name" required placeholder="Linia 23B"></div><div class="form-group"><label>Nume Stație</label><input type="text" name="stationName" required placeholder="Sala Sporturilor"></div><div class="form-group"><label>Direcție (opțional)</label><div class="direction-group"><input type="text" name="directionFrom" placeholder="De la (ex: Centru)"><div class="arrow">→</div><input type="text" name="directionTo" placeholder="Către (ex: Noua)"></div></div><div class="form-group"><label>URL RATBV</label><input type="url" name="url" required placeholder="https://www.ratbv.ro/afisaje/..."></div><button type="submit" class="btn">Adaugă Rută</button></form></div><div class="routes-list"><h2>📋 Rute Existente</h2>${routes.length > 0 ? routes.map(route => `<div class="route-item"><div class="route-info"><h3>${route.name}${route.directionFrom && route.directionTo ? `<span class="direction-badge">${route.directionFrom} → ${route.directionTo}</span>` : ''}</h3><p>📍 ${route.stationName} • ID: ${route.id}</p><p style="font-size: 0.8em; margin-top: 5px; word-break: break-all;">${route.url}</p></div><div class="route-actions"><a href="/route/${route.id}" class="btn btn-small btn-view">Vezi</a><button onclick="deleteRoute('${route.id}')" class="btn btn-small btn-delete">Șterge</button></div></div>`).join('') : '<div class="empty-state">Nu există rute adăugate încă</div>'}</div></div>
+                * { margin: 0; padding: 0; box-sizing: border-box; } body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #6366f1; min-height: 100vh; padding: 20px; } .container { max-width: 1200px; margin: 0 auto; } .header { background: white; border-radius: 15px; padding: 30px; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); } h1 { color: #333; font-size: 2.5em; margin-bottom: 10px; } .nav-links { margin-top: 15px; } .nav-links a { color: #6366f1; text-decoration: none; margin-right: 20px; font-weight: 500; } .form-section { background: white; border-radius: 15px; padding: 30px; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); } .form-section h2 { color: #333; margin-bottom: 20px; } .form-group { margin-bottom: 20px; } label { display: block; color: #666; margin-bottom: 8px; font-weight: 500; } input { width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 1em; } input:focus { outline: none; border-color: #6366f1; } .direction-group { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: end; } .direction-group input { margin: 0; } .arrow { font-size: 1.5em; color: #6366f1; padding-bottom: 12px; text-align: center; } .btn { background: #6366f1; color: white; border: none; padding: 12px 30px; border-radius: 8px; font-size: 1em; font-weight: bold; cursor: pointer; transition: background 0.3s; display: inline-block; text-decoration: none; } .btn:hover { background: #4f46e5; } .btn-big { padding: 20px 40px; font-size: 1.3em; width: 100%; text-align: center; background: linear-gradient(135deg, #10b981 0%, #059669 100%); box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3); } .btn-big:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(16, 185, 129, 0.4); } .toggle-manual { text-align: center; margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb; } .toggle-manual a { color: #6366f1; text-decoration: none; font-weight: 500; cursor: pointer; } .toggle-manual a:hover { text-decoration: underline; } .manual-form { display: none; margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb; } .manual-form.show { display: block; } .routes-list { background: white; border-radius: 15px; padding: 30px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); } .routes-list h2 { color: #333; margin-bottom: 20px; } .route-item { border: 2px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; } .route-info h3 { color: #333; margin-bottom: 5px; } .route-info p { color: #666; font-size: 0.9em; } .route-actions { display: flex; gap: 10px; } .btn-small { padding: 8px 16px; font-size: 0.9em; } .btn-view { background: #10b981; } .btn-view:hover { background: #059669; } .btn-delete { background: #ef4444; } .btn-delete:hover { background: #dc2626; } .empty-state { text-align: center; color: #999; padding: 40px; } .direction-badge { display: inline-block; background: #6366f1; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.75em; margin-left: 8px; } .highlight-box { background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%); border: 2px solid #3b82f6; border-radius: 12px; padding: 20px; margin-bottom: 25px; text-align: center; } .highlight-box p { color: #1e40af; margin-bottom: 15px; font-size: 1.1em; }
+            </style></head><body><div class="container"><div class="header"><h1>🎛️ Dashboard</h1><p style="color: #666;">Administrează rutele de autobuze</p><div class="nav-links"><a href="/">← Înapoi la Home</a></div></div><div class="form-section"><h2>➕ Adaugă Rută Nouă</h2><div class="highlight-box"><p>🎯 <strong>Recomandat:</strong> Folosește scraper-ul automat pentru a adăuga linii rapid și ușor!</p><a href="/add-line" class="btn btn-big">🚍 Adaugă Linie cu Scraper</a></div><div class="toggle-manual"><a onclick="document.getElementById('manualForm').classList.toggle('show'); this.textContent = document.getElementById('manualForm').classList.contains('show') ? '▲ Ascunde formularul manual' : '▼ Adaugă manual (avansat)'">▼ Adaugă manual (avansat)</a></div><div id="manualForm" class="manual-form"><form id="addRouteForm"><div class="form-group"><label>ID Rută (ex: sala-sporturilor)</label><input type="text" name="id" required placeholder="sala-sporturilor"></div><div class="form-group"><label>Nume Rută (ex: Linia 23B)</label><input type="text" name="name" required placeholder="Linia 23B"></div><div class="form-group"><label>Nume Stație</label><input type="text" name="stationName" required placeholder="Sala Sporturilor"></div><div class="form-group"><label>Direcție (opțional)</label><div class="direction-group"><input type="text" name="directionFrom" placeholder="De la (ex: Centru)"><div class="arrow">→</div><input type="text" name="directionTo" placeholder="Către (ex: Noua)"></div></div><div class="form-group"><label>URL RATBV</label><input type="url" name="url" required placeholder="https://www.ratbv.ro/afisaje/..."></div><button type="submit" class="btn">Adaugă Rută</button></form></div></div><div class="routes-list"><h2>📋 Rute Existente</h2>${routes.length > 0 ? routes.map(route => `<div class="route-item"><div class="route-info"><h3>${route.name}${route.directionFrom && route.directionTo ? `<span class="direction-badge">${route.directionFrom} → ${route.directionTo}</span>` : ''}</h3><p>📍 ${route.stationName} • ID: ${route.id}</p><p style="font-size: 0.8em; margin-top: 5px; word-break: break-all;">${route.url}</p></div><div class="route-actions"><a href="/route/${route.id}" class="btn btn-small btn-view">Vezi</a><button onclick="deleteRoute('${route.id}')" class="btn btn-small btn-delete">Șterge</button></div></div>`).join('') : '<div class="empty-state">Nu există rute adăugate încă</div>'}</div></div>
             <script>
                 document.getElementById('addRouteForm').addEventListener('submit', async (e) => { e.preventDefault(); const formData = new FormData(e.target); const data = Object.fromEntries(formData); try { const response = await fetch('/api/routes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); if (response.ok) { alert('Rută adăugată cu succes!'); window.location.reload(); } else { const error = await response.json(); alert('Eroare: ' + error.message); } } catch (error) { alert('Eroare la adăugarea rutei'); } });
                 async function deleteRoute(id) { if (!confirm('Sigur vrei să ștergi această rută?')) return; try { const response = await fetch('/api/routes/' + id, { method: 'DELETE' }); if (response.ok) { alert('Rută ștearsă cu succes!'); window.location.reload(); } else { alert('Eroare la ștergerea rutei'); } } catch (error) { alert('Eroare la ștergerea rutei'); } }
@@ -188,7 +498,7 @@ const server = Bun.serve({
             const html = `
             <!DOCTYPE html><html lang="ro"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${route.name} - ${route.stationName}</title>
             <style>
-                * { margin: 0; padding: 0; box-sizing: border-box; } body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #6366f1; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; } .container { background: white; border-radius: 20px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2); max-width: 800px; width: 100%; padding: 40px; animation: slideIn 0.5s ease-out; } @keyframes slideIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } } .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #6366f1; padding-bottom: 20px; } .header h1 { color: #333; font-size: 2.5em; margin-bottom: 10px; } .route-badge { display: inline-block; background: #6366f1; color: white; padding: 8px 20px; border-radius: 25px; font-size: 1.2em; font-weight: bold; margin-bottom: 10px; } .direction-info { color: #6366f1; font-size: 1.1em; margin-top: 8px; font-weight: 500; } .direction-info::before { content: "🚏 "; } .location { color: #666; font-size: 1.3em; margin-top: 10px; } .location::before { content: "📍 "; } .timestamp { color: #888; font-size: 0.9em; margin-top: 10px; } .cache-badge { display: inline-block; background: #10b981; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.8em; margin-left: 10px; } .times-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 12px; margin-top: 30px; } .time-card { background: #6366f1; color: white; padding: 12px; border-radius: 10px; text-align: center; font-size: 1.1em; font-weight: bold; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3); transition: transform 0.2s, box-shadow 0.2s; cursor: pointer; } .time-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(99, 102, 241, 0.5); } .time-card.next-bus { background: #ef4444; box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4); animation: pulse 2s infinite; } @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } } .no-times { text-align: center; color: #666; font-size: 1.2em; padding: 40px; } .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 2px solid #eee; color: #888; } .btn { background: #6366f1; color: white; border: none; padding: 12px 30px; border-radius: 25px; font-size: 1em; font-weight: bold; cursor: pointer; margin: 10px 5px; transition: background 0.3s; text-decoration: none; display: inline-block; } .btn:hover { background: #4f46e5; } @media (max-width: 600px) { .container { padding: 20px; } .header h1 { font-size: 1.8em; } .times-grid { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 10px; } .time-card { font-size: 1em; padding: 10px; } }
+                * { margin: 0; padding: 0; box-sizing: border-box; } body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #6366f1; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; } .container { background: white; border-radius: 20px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2); max-width: 800px; width: 100%; padding: 40px; animation: slideIn 0.5s ease-out; } @keyframes slideIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } } .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #6366f1; padding-bottom: 20px; } .header h1 { color: #333; font-size: 2.5em; margin-bottom: 10px; } .route-badge { display: inline-block; background: #6366f1; color: white; padding: 8px 20px; border-radius: 25px; font-size: 1.2em; font-weight: bold; margin-bottom: 10px; } .direction-info { color: #6366f1; font-size: 1.1em; margin-top: 8px; font-weight: 500; } .direction-info::before { content: "🚏 "; } .location { color: #666; font-size: 1.3em; margin-top: 10px; } .location::before { content: "📍 "; } .timestamp { color: #888; font-size: 0.9em; margin-top: 10px; } .cache-badge { display: inline-block; background: #10b981; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.8em; margin-left: 10px; } .times-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 15px; margin-top: 30px; } .time-card { background: #6366f1; color: white; padding: 12px; border-radius: 12px; text-align: center; font-size: 1.1em; font-weight: bold; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3); transition: transform 0.2s, box-shadow 0.2s; cursor: pointer; } .time-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(99, 102, 241, 0.5); } .time-card.next-bus { background: #ef4444; box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4); animation: pulse 2s infinite; } @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } } .no-times { text-align: center; color: #666; font-size: 1.2em; padding: 40px; } .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 2px solid #eee; color: #888; } .btn { background: #6366f1; color: white; border: none; padding: 12px 30px; border-radius: 25px; font-size: 1em; font-weight: bold; cursor: pointer; margin: 10px 5px; transition: background 0.3s; text-decoration: none; display: inline-block; } .btn:hover { background: #4f46e5; } @media (max-width: 600px) { .container { padding: 20px; } .header h1 { font-size: 1.8em; } .times-grid { grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px; } .time-card { font-size: 1.2em; padding: 15px; } }
             </style></head><body><div class="container"><div class="header"><h1>🚌 RATBV Bus Times</h1><div class="route-badge">${route.name}</div>${route.directionFrom && route.directionTo ? `<div class="direction-info">${route.directionFrom} → ${route.directionTo}</div>` : ''}<div class="location">${route.stationName}</div><div class="timestamp">Actualizat: ${currentTime}${isCached ? ` <span class="cache-badge">📦 Cache (${Math.round(cacheAge / 1000)}s)</span>` : ' <span class="cache-badge" style="background: #ef4444;">🔴 Live</span>'}</div></div>${busTimes.length > 0 ? `<div class="times-grid">${busTimes.map((time, index) => { const [hour, minute] = time.split(':'); const now = new Date(); const busTime = new Date(); busTime.setHours(parseInt(hour), parseInt(minute), 0); const isNext = busTime > now && index === busTimes.findIndex(t => { const [h, m] = t.split(':'); const bt = new Date(); bt.setHours(parseInt(h), parseInt(m), 0); return bt > now; }); return `<div class="time-card ${isNext ? 'next-bus' : ''}">${time}</div>`; }).join('')}</div>` : `<div class="no-times">Nu sunt curse disponibile în acest moment.</div>`}
             <div class="footer"><button class="btn" onclick="refreshCache()">🔄 Actualizează</button><a href="/" class="btn">🏠 Înapoi la Home</a><button class="btn" style="background: #ef4444;" onclick="deleteRoute()">🗑️ Șterge Rută</button><p style="margin-top: 15px;">Date live de la RATBV Brașov</p></div></div>
             <script>
