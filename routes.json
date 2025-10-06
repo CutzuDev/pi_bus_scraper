@@ -1,8 +1,10 @@
 [
   {
-    "id": "sala-sporturilor-intors",
-    "name": "23B",
+    "id": "4-intors",
+    "routeNumber": "23b",
+    "direction": "intors",
     "stationName": "Sala Sporturilor",
+    "stationSlug": "4",
     "url": "https://www.ratbv.ro/afisaje/23b-intors/line_23b_4_cl1_ro.html",
     "directionFrom": "Triaj",
     "directionTo": "Stad. Municipal",
