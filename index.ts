@@ -160,14 +160,24 @@ const server = Bun.serve({
     if (url.pathname === '/api/routes' && method === 'POST') {
         try {
             const newRoute: Route = await req.json();
+            console.log('🌐 [API] POST /api/routes called');
+            console.log('🌐 [API] New route data:', newRoute);
+            
             const routes = await loadRoutes();
+            console.log('🌐 [API] Existing routes count:', routes.length);
+            
             if (routes.some(r => r.id === newRoute.id)) {
+                console.error('❌ [API] Route ID already exists:', newRoute.id);
                 return new Response(JSON.stringify({ message: 'ID already exists' }), { status: 400 });
             }
+            
             routes.push(newRoute);
             await saveRoutes(routes);
+            console.log('✅ [API] Route saved successfully. Total routes:', routes.length);
+            
             return new Response(JSON.stringify({ success: true }), { status: 201 });
-        } catch {
+        } catch (error) {
+            console.error('❌ [API] Error adding route:', error);
             return new Response(JSON.stringify({ message: 'Invalid request body' }), { status: 400 });
         }
     }
@@ -201,18 +211,23 @@ const server = Bun.serve({
     if (url.pathname === '/api/scrape-line' && method === 'POST') {
         try {
             const { masterUrl } = await req.json();
+            console.log('🌐 [API] /api/scrape-line called');
+            console.log('🌐 [API] masterUrl:', masterUrl);
+            
             if (!masterUrl) {
+                console.error('❌ [API] Missing masterUrl in request');
                 return new Response(JSON.stringify({ message: 'masterUrl is required' }), { status: 400 });
             }
             
-            console.log(`Scraping line metadata from: ${masterUrl}`);
+            console.log(`📡 [API] Scraping line metadata from: ${masterUrl}`);
             const metadata = await scrapeLineMetadata(masterUrl);
+            console.log('✅ [API] Scrape successful:', metadata.lineName, '-', metadata.stations.length, 'stations');
             
             return new Response(JSON.stringify(metadata), { 
                 headers: { 'Content-Type': 'application/json' } 
             });
         } catch (error) {
-            console.error('Error scraping line metadata:', error);
+            console.error('❌ [API] Error scraping line metadata:', error);
             return new Response(JSON.stringify({ 
                 message: 'Failed to scrape line metadata',
                 error: error instanceof Error ? error.message : 'Unknown error'
@@ -302,13 +317,26 @@ const server = Bun.serve({
                 let selectedDirection = 'dus';
 
                 function renderStations() {
-                    if (!lineMetadata) return;
+                    console.log('🎨 [RENDER] renderStations() called');
+                    console.log('🎨 [RENDER] lineMetadata:', lineMetadata);
+                    console.log('🎨 [RENDER] selectedDirection:', selectedDirection);
+                    
+                    if (!lineMetadata) {
+                        console.warn('⚠️  [RENDER] No lineMetadata available');
+                        return;
+                    }
                     
                     // Get the appropriate metadata based on direction
                     const currentMetadata = selectedDirection === 'intors' ? lineMetadataIntors : lineMetadata;
-                    if (!currentMetadata) return;
+                    console.log('🎨 [RENDER] currentMetadata:', currentMetadata);
+                    
+                    if (!currentMetadata) {
+                        console.warn('⚠️  [RENDER] No currentMetadata available');
+                        return;
+                    }
                     
                     const stations = currentMetadata.stations;
+                    console.log('🎨 [RENDER] Rendering', stations.length, 'stations for direction:', selectedDirection);
                     
                     const stationList = document.getElementById('stationList');
                     stationList.innerHTML = stations.map((station, index) => 
@@ -318,6 +346,8 @@ const server = Bun.serve({
                         </div>\`
                     ).join('');
                     
+                    console.log('✅ [RENDER] Stations rendered successfully');
+                    
                     // Clear selection when switching direction
                     selectedStation = null;
                     document.getElementById('addRouteBtn').disabled = true;
@@ -325,7 +355,10 @@ const server = Bun.serve({
 
                 async function scrapeLine() {
                     const routeNumber = document.getElementById('routeNumber').value.trim().toLowerCase();
+                    console.log('🚀 [SCRAPER] Starting scrape for route:', routeNumber);
+                    
                     if (!routeNumber) {
+                        console.error('❌ [SCRAPER] No route number provided');
                         alert('Te rog introdu numărul liniei (ex: 23b)!');
                         return;
                     }
@@ -341,36 +374,51 @@ const server = Bun.serve({
                         // Build URLs automatically from route number
                         const dusUrl = \`https://www.ratbv.ro/afisaje/\${routeNumber}-dus.html\`;
                         const intorsUrl = \`https://www.ratbv.ro/afisaje/\${routeNumber}-intors.html\`;
+                        
+                        console.log('🔗 [SCRAPER] Built URLs:');
+                        console.log('  ➡️  DUS:', dusUrl);
+                        console.log('  ⬅️  INTORS:', intorsUrl);
+                        console.log('🔗 [SCRAPER] Built URLs:');
+                        console.log('  ➡️  DUS:', dusUrl);
+                        console.log('  ⬅️  INTORS:', intorsUrl);
 
                         // Scrape DUS direction
+                        console.log('📡 [SCRAPER] Fetching DUS direction...');
                         const responseDus = await fetch('/api/scrape-line', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ masterUrl: dusUrl })
                         });
 
+                        console.log('📥 [SCRAPER] DUS Response status:', responseDus.status);
+                        
                         if (!responseDus.ok) {
                             const error = await responseDus.json();
+                            console.error('❌ [SCRAPER] DUS failed:', error);
                             throw new Error(error.message || 'Failed to scrape dus direction');
                         }
 
                         lineMetadata = await responseDus.json();
                         lineMetadata.masterUrl = dusUrl;
+                        console.log('✅ [SCRAPER] DUS data received:', lineMetadata.lineName, '-', lineMetadata.stations.length, 'stations');
                         
                         // Scrape INTORS direction
+                        console.log('📡 [SCRAPER] Fetching INTORS direction...');
                         const responseIntors = await fetch('/api/scrape-line', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ masterUrl: intorsUrl })
                         });
 
+                        console.log('📥 [SCRAPER] INTORS Response status:', responseIntors.status);
+
                         if (responseIntors.ok) {
                             lineMetadataIntors = await responseIntors.json();
                             lineMetadataIntors.masterUrl = intorsUrl;
-                            console.log('Intors data fetched:', lineMetadataIntors);
+                            console.log('✅ [SCRAPER] INTORS data received:', lineMetadataIntors.lineName, '-', lineMetadataIntors.stations.length, 'stations');
                         } else {
                             // If intors fails, use reversed dus as fallback
-                            console.warn('Failed to fetch intors, using reversed dus as fallback');
+                            console.warn('⚠️  [SCRAPER] Failed to fetch intors, using reversed dus as fallback');
                             lineMetadataIntors = {
                                 lineName: lineMetadata.lineName,
                                 stations: [...lineMetadata.stations].reverse(),
@@ -378,10 +426,13 @@ const server = Bun.serve({
                             };
                         }
                         
-                        console.log('Dus stations:', lineMetadata.stations.length, lineMetadata.stations);
-                        console.log('Intors stations:', lineMetadataIntors.stations.length, lineMetadataIntors.stations);
+                        console.log('📊 [SCRAPER] Station counts:');
+                        console.log('  ➡️  Dus stations:', lineMetadata.stations.length);
+                        console.log('  ⬅️  Intors stations:', lineMetadataIntors.stations.length);
+                        console.log('📋 [SCRAPER] Full station data:', { dus: lineMetadata.stations, intors: lineMetadataIntors.stations });
                         
                         // Show step 2
+                        console.log('🎨 [SCRAPER] Rendering step 2...');
                         document.getElementById('lineInfo').innerHTML = 
                             \`<strong>✅ Linie găsită:</strong> \${lineMetadata.lineName}<br>
                             <strong>📍 Stații Dus:</strong> \${lineMetadata.stations.length} • <strong>Întors:</strong> \${lineMetadataIntors.stations.length}<br>
@@ -391,8 +442,10 @@ const server = Bun.serve({
                         renderStations();
 
                         document.getElementById('step2').classList.remove('hidden');
+                        console.log('✅ [SCRAPER] Scrape completed successfully!');
                         
                     } catch (error) {
+                        console.error('❌ [SCRAPER] Error occurred:', error);
                         alert('Eroare: ' + error.message);
                     } finally {
                         scrapeBtn.disabled = false;
@@ -402,6 +455,7 @@ const server = Bun.serve({
                 }
 
                 function selectDirection(direction) {
+                    console.log('🔄 [DIRECTION] Switching direction to:', direction);
                     selectedDirection = direction;
                     document.querySelectorAll('.direction-option').forEach(el => {
                         el.classList.remove('selected');
@@ -409,13 +463,20 @@ const server = Bun.serve({
                     document.querySelector(\`.direction-option[data-direction="\${direction}"]\`).classList.add('selected');
                     
                     // Re-render stations with the appropriate metadata
+                    console.log('🔄 [DIRECTION] Re-rendering stations for new direction');
                     renderStations();
                 }
 
                 function selectStation(index) {
+                    console.log('🎯 [STATION] Station selected at index:', index);
+                    console.log('🎯 [STATION] Current direction:', selectedDirection);
+                    
                     // Get the current metadata based on direction
                     const currentMetadata = selectedDirection === 'intors' ? lineMetadataIntors : lineMetadata;
+                    console.log('🎯 [STATION] Current metadata:', currentMetadata);
+                    
                     selectedStation = currentMetadata.stations[index];
+                    console.log('🎯 [STATION] Selected station:', selectedStation);
                     
                     document.querySelectorAll('.station-item').forEach(el => {
                         el.classList.remove('selected');
@@ -423,10 +484,15 @@ const server = Bun.serve({
                     document.querySelector(\`.station-item[data-index="\${index}"]\`).classList.add('selected');
                     
                     document.getElementById('addRouteBtn').disabled = false;
+                    console.log('✅ [STATION] Station selection complete');
                 }
 
                 async function addRoute() {
+                    console.log('➕ [ADD ROUTE] Starting addRoute()');
+                    console.log('➕ [ADD ROUTE] selectedStation:', selectedStation);
+                    
                     if (!selectedStation) {
+                        console.error('❌ [ADD ROUTE] No station selected');
                         alert('Te rog selectează o stație!');
                         return;
                     }
@@ -436,18 +502,14 @@ const server = Bun.serve({
                     addBtn.textContent = '⏳ Se adaugă...';
 
                     try {
-                        // Transform the station URL based on direction
-                        let stationUrl = selectedStation.link;
-                        if (selectedDirection === 'intors') {
-                            stationUrl = stationUrl.replace('-dus.html', '-intors.html');
-                        }
-
                         // Get direction labels from first and last stations
                         const firstStation = lineMetadata.stations[0].name;
                         const lastStation = lineMetadata.stations[lineMetadata.stations.length - 1].name;
                         
                         const directionFrom = selectedDirection === 'dus' ? firstStation : lastStation;
                         const directionTo = selectedDirection === 'dus' ? lastStation : firstStation;
+
+                        console.log('📍 [ADD ROUTE] Direction labels:', { directionFrom, directionTo });
 
                         // Extract route number from the master URL
                         // Example: https://www.ratbv.ro/afisaje/23b-dus.html -> 23b
@@ -456,11 +518,15 @@ const server = Bun.serve({
                         const routeNumberMatch = masterUrl.match(/afisaje\\/([^-]+)-/);
                         const routeNumber = routeNumberMatch ? routeNumberMatch[1] : '';
 
+                        console.log('🔢 [ADD ROUTE] Extracted route number:', routeNumber, 'from', masterUrl);
+
                         // Extract station slug from the station link
                         // Example: .../line_23b_4_cl1_ro.html -> 4
                         const stationLink = selectedStation.link;
                         const stationSlugMatch = stationLink.match(/line_[^_]+_([^_]+)_/);
                         const stationSlug = stationSlugMatch ? stationSlugMatch[1] : selectedStation.route;
+
+                        console.log('🏷️  [ADD ROUTE] Extracted station slug:', stationSlug, 'from', stationLink);
 
                         // Use the actual URL from the scraper
                         const stationUrl = selectedStation.link;
@@ -477,22 +543,30 @@ const server = Bun.serve({
                             directionTo: directionTo
                         };
 
+                        console.log('📦 [ADD ROUTE] Route data to send:', routeData);
+
+                        console.log('📡 [ADD ROUTE] Sending POST request to /api/routes...');
                         const response = await fetch('/api/routes', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(routeData)
                         });
 
+                        console.log('📥 [ADD ROUTE] Response status:', response.status);
+
                         if (response.ok) {
+                            console.log('✅ [ADD ROUTE] Route added successfully!');
                             alert('✅ Rută adăugată cu succes!');
                             window.location.href = '/dashboard';
                         } else {
                             const error = await response.json();
+                            console.error('❌ [ADD ROUTE] Failed to add route:', error);
                             alert('Eroare: ' + error.message);
                             addBtn.disabled = false;
                             addBtn.textContent = '✅ Adaugă Rută';
                         }
                     } catch (error) {
+                        console.error('❌ [ADD ROUTE] Exception caught:', error);
                         alert('Eroare la adăugarea rutei: ' + error.message);
                         addBtn.disabled = false;
                         addBtn.textContent = '✅ Adaugă Rută';
