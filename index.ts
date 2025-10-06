@@ -257,15 +257,15 @@ const server = Bun.serve({
                 .success-box { background: #d1fae5; border-left: 4px solid #10b981; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
             </style></head><body><div class="container"><div class="header"><h1>🚍 Adaugă Linie Nouă</h1><p style="color: #666;">Completează formularul pentru a adăuga o linie de autobuz</p><div class="nav-links"><a href="/dashboard">← Înapoi la Dashboard</a></div></div>
             
-            <!-- Step 1: Input Master URL -->
+            <!-- Step 1: Input Route Number -->
             <div class="step-section" id="step1">
-                <h2>Pasul 1: Introdu Link-ul Liniei</h2>
+                <h2>Pasul 1: Introdu Numărul Liniei</h2>
                 <div class="info-box">
-                    <strong>ℹ️ Exemplu:</strong> https://www.ratbv.ro/afisaje/23b-dus.html
+                    <strong>ℹ️ Exemplu:</strong> 23b
                 </div>
                 <div class="form-group">
-                    <label>Link Master al Liniei</label>
-                    <input type="url" id="masterUrl" placeholder="https://www.ratbv.ro/afisaje/..." required>
+                    <label>Număr Linie (ex: 23b, 5, 12)</label>
+                    <input type="text" id="routeNumber" placeholder="23b" required>
                 </div>
                 <button class="btn" id="scrapeBtn" onclick="scrapeLine()">📡 Scanează Linia</button>
                 <span class="loading hidden" id="loading1">⏳ Se încarcă...</span>
@@ -324,9 +324,9 @@ const server = Bun.serve({
                 }
 
                 async function scrapeLine() {
-                    const masterUrl = document.getElementById('masterUrl').value.trim();
-                    if (!masterUrl) {
-                        alert('Te rog introdu un link valid!');
+                    const routeNumber = document.getElementById('routeNumber').value.trim().toLowerCase();
+                    if (!routeNumber) {
+                        alert('Te rog introdu numărul liniei (ex: 23b)!');
                         return;
                     }
 
@@ -338,11 +338,9 @@ const server = Bun.serve({
                     loading.classList.remove('hidden');
 
                     try {
-                        // Ensure we have both dus and intors URLs
-                        const dusUrl = masterUrl.includes('-intors.html') 
-                            ? masterUrl.replace('-intors.html', '-dus.html')
-                            : masterUrl;
-                        const intorsUrl = dusUrl.replace('-dus.html', '-intors.html');
+                        // Build URLs automatically from route number
+                        const dusUrl = \`https://www.ratbv.ro/afisaje/\${routeNumber}-dus.html\`;
+                        const intorsUrl = \`https://www.ratbv.ro/afisaje/\${routeNumber}-intors.html\`;
 
                         // Scrape DUS direction
                         const responseDus = await fetch('/api/scrape-line', {
