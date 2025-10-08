@@ -577,17 +577,63 @@ const server = Bun.serve({
             const dashboardHtml = `
             <!DOCTYPE html><html lang="ro"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Dashboard - RATBV Routes</title>
             <style>
-                * { margin: 0; padding: 0; box-sizing: border-box; } body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #6366f1; min-height: 100vh; padding: 20px; } .container { max-width: 1200px; margin: 0 auto; } .header { background: white; border-radius: 15px; padding: 30px; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); } h1 { color: #333; font-size: 2.5em; margin-bottom: 10px; } .nav-links { margin-top: 15px; } .nav-links a { color: #6366f1; text-decoration: none; margin-right: 20px; font-weight: 500; } .form-section { background: white; border-radius: 15px; padding: 30px; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); } .form-section h2 { color: #333; margin-bottom: 20px; } .form-group { margin-bottom: 20px; } label { display: block; color: #666; margin-bottom: 8px; font-weight: 500; } input, select { width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 1em; } input:focus, select:focus { outline: none; border-color: #6366f1; } .direction-group { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: end; } .direction-group input { margin: 0; } .arrow { font-size: 1.5em; color: #6366f1; padding-bottom: 12px; text-align: center; } .btn { background: #6366f1; color: white; border: none; padding: 12px 30px; border-radius: 8px; font-size: 1em; font-weight: bold; cursor: pointer; transition: background 0.3s; display: inline-block; text-decoration: none; } .btn:hover { background: #4f46e5; } .btn-big { padding: 20px 40px; font-size: 1.3em; width: 100%; text-align: center; background: linear-gradient(135deg, #10b981 0%, #059669 100%); box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3); } .btn-big:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(16, 185, 129, 0.4); } .toggle-manual { text-align: center; margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb; } .toggle-manual a { color: #6366f1; text-decoration: none; font-weight: 500; cursor: pointer; } .toggle-manual a:hover { text-decoration: underline; } .manual-form { display: none; margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb; } .manual-form.show { display: block; } .routes-list { background: white; border-radius: 15px; padding: 30px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); } .routes-list h2 { color: #333; margin-bottom: 20px; } .route-item { border: 2px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 15px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; } .route-info h3 { color: #333; margin-bottom: 5px; } .route-info p { color: #666; font-size: 0.9em; } .route-actions { display: flex; gap: 10px; flex-wrap: wrap; } .btn-small { padding: 8px 16px; font-size: 0.9em; } .btn-view { background: #10b981; } .btn-view:hover { background: #059669; } .btn-delete { background: #ef4444; } .btn-delete:hover { background: #dc2626; } .empty-state { text-align: center; color: #999; padding: 40px; } .direction-badge { display: inline-block; background: #6366f1; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.75em; margin-left: 8px; } .highlight-box { background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%); border: 2px solid #3b82f6; border-radius: 12px; padding: 20px; margin-bottom: 25px; text-align: center; } .highlight-box p { color: #1e40af; margin-bottom: 15px; font-size: 1.1em; }
+                * { margin: 0; padding: 0; box-sizing: border-box; } 
+                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #6366f1; min-height: 100vh; padding: 20px; } 
+                .container { max-width: 1200px; margin: 0 auto; } 
+                .header { background: white; border-radius: 15px; padding: 30px; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); } 
+                h1 { color: #333; font-size: 2.5em; margin-bottom: 10px; } 
+                .nav-links { margin-top: 15px; } 
+                .nav-links a { color: #6366f1; text-decoration: none; margin-right: 20px; font-weight: 500; } 
+                .form-section { background: white; border-radius: 15px; padding: 30px; margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); } 
+                .form-section h2 { color: #333; margin-bottom: 20px; } 
+                .form-group { margin-bottom: 20px; } 
+                label { display: block; color: #666; margin-bottom: 8px; font-weight: 500; } 
+                input, select { width: 100%; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 1em; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; } 
+                input:focus, select:focus { outline: none; border-color: #6366f1; } 
+                .direction-group { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: end; } 
+                .direction-group input { margin: 0; } 
+                .arrow { font-size: 1.5em; color: #6366f1; padding-bottom: 12px; text-align: center; } 
+                .btn { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #6366f1; color: white; border: none; padding: 12px 30px; border-radius: 8px; font-size: 1em; font-weight: bold; cursor: pointer; transition: background 0.3s; display: inline-block; text-decoration: none; } 
+                .btn:hover { background: #4f46e5; } 
+                .btn-big { padding: 20px 40px; font-size: 1.3em; width: 100%; text-align: center; background: linear-gradient(135deg, #10b981 0%, #059669 100%); box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3); } 
+                .btn-big:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(16, 185, 129, 0.4); } 
+                .toggle-manual { text-align: center; margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb; } 
+                .toggle-manual a { color: #6366f1; text-decoration: none; font-weight: 500; cursor: pointer; } 
+                .toggle-manual a:hover { text-decoration: underline; } 
+                .manual-form { display: none; margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb; } 
+                .manual-form.show { display: block; } 
+                .routes-list { background: white; border-radius: 15px; padding: 30px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); } 
+                .routes-list h2 { color: #333; margin-bottom: 20px; } 
+                .route-item { border: 2px solid #e5e7eb; border-radius: 8px; padding: 20px; margin-bottom: 15px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 15px; } 
+                .route-info { flex: 1; min-width: 200px; } 
+                .route-info h3 { color: #333; margin-bottom: 5px; } 
+                .route-info p { color: #666; font-size: 0.9em; } 
+                .route-actions { display: flex; gap: 10px; flex-wrap: wrap; } 
+                .btn-small { padding: 10px 20px; font-size: 0.95em; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; } 
+                .btn-view { background: #10b981; } 
+                .btn-view:hover { background: #059669; } 
+                .btn-delete { background: #ef4444; } 
+                .btn-delete:hover { background: #dc2626; } 
+                .empty-state { text-align: center; color: #999; padding: 40px; } 
+                .direction-badge { display: inline-block; background: #6366f1; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.75em; margin-left: 8px; } 
+                .highlight-box { background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%); border: 2px solid #3b82f6; border-radius: 12px; padding: 20px; margin-bottom: 25px; text-align: center; } 
+                .highlight-box p { color: #1e40af; margin-bottom: 15px; font-size: 1.1em; }
                 /* --- MOBILE IMPROVEMENTS --- */
                 @media (max-width: 600px) {
-                  .container { padding: 0 2vw; }
-                  .header, .form-section, .routes-list { padding: 15px; }
-                  .route-item { flex-direction: column; align-items: stretch; padding: 12px; gap: 8px; }
-                  .route-info h3 { font-size: 1.1em; }
-                  .route-info p { font-size: 0.95em; }
-                  .route-actions { flex-direction: row; justify-content: flex-end; gap: 8px; }
-                  .btn-small { width: 48%; min-width: 90px; font-size: 1em; padding: 10px 0; }
-                  .route-item > * { width: 100%; }
+                  body { padding: 10px; }
+                  .container { padding: 0; }
+                  .header { padding: 20px; margin-bottom: 15px; }
+                  h1 { font-size: 1.8em; }
+                  .form-section, .routes-list { padding: 20px; margin-bottom: 15px; }
+                  .route-item { flex-direction: column; align-items: stretch; padding: 15px; gap: 12px; }
+                  .route-info { min-width: 100%; }
+                  .route-info h3 { font-size: 1.15em; margin-bottom: 8px; }
+                  .route-info p { font-size: 0.9em; line-height: 1.5; }
+                  .direction-badge { display: block; margin-left: 0; margin-top: 5px; width: fit-content; }
+                  .route-actions { width: 100%; gap: 8px; margin-top: 5px; }
+                  .btn-small { flex: 1; min-width: 0; font-size: 0.95em; padding: 12px 8px; text-align: center; }
+                  .highlight-box { padding: 15px; }
+                  .btn-big { font-size: 1.1em; padding: 16px 20px; }
                 }
             </style></head><body><div class="container"><div class="header"><h1>🎛️ Dashboard</h1><p style="color: #666;">Administrează rutele de autobuze</p><div class="nav-links"><a href="/">← Înapoi la Home</a></div></div><div class="form-section"><h2>➕ Adaugă Rută Nouă</h2><div class="highlight-box"><p>🎯 <strong>Recomandat:</strong> Folosește scraper-ul automat pentru a adăuga linii rapid și ușor!</p><a href="/add-line" class="btn btn-big">🚍 Adaugă Linie cu Scraper</a></div><div class="toggle-manual"><a onclick="document.getElementById('manualForm').classList.toggle('show'); this.textContent = document.getElementById('manualForm').classList.contains('show') ? '▲ Ascunde formularul manual' : '▼ Adaugă manual (avansat)'">▼ Adaugă manual (avansat)</a></div><div id="manualForm" class="manual-form"><form id="addRouteForm"><div class="form-group"><label>ID Rută (ex: 4-dus)</label><input type="text" name="id" required placeholder="4-dus"></div><div class="form-group"><label>Număr Rută (ex: 23b)</label><input type="text" name="routeNumber" required placeholder="23b"></div><div class="form-group"><label>Direcție</label><select name="direction" required><option value="dus">Dus</option><option value="intors">Întors</option></select></div><div class="form-group"><label>Nume Stație</label><input type="text" name="stationName" required placeholder="Sala Sporturilor"></div><div class="form-group"><label>Station Slug (ex: 4)</label><input type="text" name="stationSlug" required placeholder="4"></div><div class="form-group"><label>URL Complet</label><input type="url" name="url" required placeholder="https://www.ratbv.ro/afisaje/23b-dus/line_23b_4_cl1_ro.html"></div><div class="form-group"><label>Direcție (opțional)</label><div class="direction-group"><input type="text" name="directionFrom" placeholder="De la (ex: Centru)"><div class="arrow">→</div><input type="text" name="directionTo" placeholder="Către (ex: Noua)"></div></div><button type="submit" class="btn">Adaugă Rută</button></form></div></div><div class="routes-list"><h2>📋 Rute Existente</h2>${routes.length > 0 ? routes.map(route => `<div class="route-item"><div class="route-info"><h3>${route.routeNumber.toUpperCase()}${route.directionFrom && route.directionTo ? `<span class="direction-badge">${route.directionFrom} → ${route.directionTo}</span>` : ''}</h3><p>📍 ${route.stationName} • ${route.direction} • ID: ${route.id}</p><p style="font-size: 0.8em; margin-top: 5px; word-break: break-all;">/${route.routeNumber}/${route.direction}/${route.stationSlug}</p></div><div class="route-actions"><a href="/${route.routeNumber}/${route.direction}/${route.stationSlug}" class="btn btn-small btn-view">Vezi</a><button onclick="deleteRoute('${route.id}')" class="btn btn-small btn-delete">Șterge</button></div></div>`).join('') : '<div class="empty-state">Nu există rute adăugate încă</div>'}</div></div>
             <script>
