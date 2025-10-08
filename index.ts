@@ -238,7 +238,17 @@ const server = Bun.serve({
         // --- PAGE ROUTES ---
         if (url.pathname === '/add-line') {
             const addLineHtml = `
-            <!DOCTYPE html><html lang="ro"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Adaugă Linie - RATBV</title>
+            <!DOCTYPE html><html lang="ro"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Adaugă Linie - RATBV</title>
+            
+            <!-- iOS PWA Meta Tags -->
+            <meta name="apple-mobile-web-app-capable" content="yes">
+            <meta name="apple-mobile-web-app-status-bar-style" content="default">
+            <meta name="apple-mobile-web-app-title" content="RATBV Scraper">
+            
+            <!-- App Icon for iOS -->
+            <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%236366f1' rx='20'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='white'>🚌</text></svg>">
+            
             <style>
                 * { margin: 0; padding: 0; box-sizing: border-box; } 
                 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #6366f1; min-height: 100vh; padding: 20px; } 
@@ -575,7 +585,17 @@ const server = Bun.serve({
         if (url.pathname === '/dashboard') {
             const routes = await loadRoutes();
             const dashboardHtml = `
-            <!DOCTYPE html><html lang="ro"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Dashboard - RATBV Routes</title>
+            <!DOCTYPE html><html lang="ro"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Dashboard - RATBV Routes</title>
+            
+            <!-- iOS PWA Meta Tags -->
+            <meta name="apple-mobile-web-app-capable" content="yes">
+            <meta name="apple-mobile-web-app-status-bar-style" content="default">
+            <meta name="apple-mobile-web-app-title" content="RATBV Scraper">
+            
+            <!-- App Icon for iOS -->
+            <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%236366f1' rx='20'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='white'>🚌</text></svg>">
+            
             <style>
                 * { margin: 0; padding: 0; box-sizing: border-box; } 
                 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #6366f1; min-height: 100vh; padding: 20px; } 
@@ -691,7 +711,17 @@ try {
     const currentTime = new Date().toLocaleString('ro-RO', { timeZone: 'Europe/Bucharest' });
 
     const html = `
-            <!DOCTYPE html><html lang="ro"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${route.routeNumber.toUpperCase()} - ${route.stationName}</title>
+            <!DOCTYPE html><html lang="ro"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>${route.routeNumber.toUpperCase()} - ${route.stationName}</title>
+            
+            <!-- iOS PWA Meta Tags -->
+            <meta name="apple-mobile-web-app-capable" content="yes">
+            <meta name="apple-mobile-web-app-status-bar-style" content="default">
+            <meta name="apple-mobile-web-app-title" content="RATBV Scraper">
+            
+            <!-- App Icon for iOS (using emoji as SVG) -->
+            <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%236366f1' rx='20'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='white'>🚌</text></svg>">
+            
             <style>
                 * { margin: 0; padding: 0; box-sizing: border-box; } body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #6366f1; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; } .container { background: white; border-radius: 20px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2); max-width: 800px; width: 100%; padding: 40px; animation: slideIn 0.5s ease-out; } @keyframes slideIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } } .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #6366f1; padding-bottom: 20px; } .header h1 { color: #333; font-size: 2.5em; margin-bottom: 10px; } .route-badge { display: inline-block; background: #6366f1; color: white; padding: 8px 20px; border-radius: 25px; font-size: 1.2em; font-weight: bold; margin-bottom: 10px; } .direction-info { color: #6366f1; font-size: 1.1em; margin-top: 8px; font-weight: 500; } .direction-info::before { content: "🚏 "; } .location { color: #666; font-size: 1.3em; margin-top: 10px; } .location::before { content: "📍 "; } .timestamp { color: #888; font-size: 0.9em; margin-top: 10px; } .cache-badge { display: inline-block; background: #10b981; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.8em; margin-left: 10px; } .action-buttons { display: flex; gap: 10px; justify-content: center; margin-bottom: 25px; flex-wrap: wrap; } .times-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-top: 30px; } .time-card { background: #6366f1; color: white; padding: 12px; border-radius: 12px; text-align: center; font-size: 1.1em; font-weight: bold; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3); transition: transform 0.2s, box-shadow 0.2s; cursor: pointer; } .time-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(99, 102, 241, 0.5); } .time-card.next-bus { background: #ef4444; box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4); animation: pulse 2s infinite; } @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } } .no-times { text-align: center; color: #666; font-size: 1.2em; padding: 40px; } .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 2px solid #eee; color: #888; } .btn { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #6366f1; color: white; border: none; padding: 12px 30px; border-radius: 25px; font-size: 1em; font-weight: bold; cursor: pointer; margin: 0; transition: background 0.3s; text-decoration: none; display: inline-block; } .btn:hover { background: #4f46e5; } .btn-delete { background: #ef4444; } .btn-delete:hover { background: #dc2626; } @media (max-width: 600px) { .container { padding: 20px; } .header h1 { font-size: 1.8em; } .action-buttons { gap: 8px; } .btn { padding: 10px 20px; font-size: 0.95em; } .times-grid { grid-template-columns: repeat(4, 1fr); gap: 8px; } .time-card { font-size: 1em; padding: 12px 8px; } }
             </style></head><body><div class="container"><div class="header"><h1>🚌 RATBV Bus Times</h1><div class="route-badge">${route.routeNumber.toUpperCase()}</div>${route.directionFrom && route.directionTo ? `<div class="direction-info">${route.directionFrom} → ${route.directionTo}</div>` : ''}<div class="location">${route.stationName}</div><div class="timestamp">Actualizat: ${currentTime}${isCached ? ` <span class="cache-badge">📦 Cache (${Math.round(cacheAge / 1000)}s)</span>` : ' <span class="cache-badge" style="background: #ef4444;">🔴 Live</span>'}</div></div><div class="action-buttons"><button class="btn" onclick="refreshCache()">🔄 Refresh</button><a href="/" class="btn">🏠 Home</a><button class="btn btn-delete" onclick="deleteRoute()">🗑️ Delete</button></div>${busTimes.length > 0 ? `<div class="times-grid">${busTimes.map((time, index) => { const [hour, minute] = time.split(':'); const now = new Date(); const busTime = new Date(); busTime.setHours(parseInt(hour), parseInt(minute), 0); const isNext = busTime > now && index === busTimes.findIndex(t => { const [h, m] = t.split(':'); const bt = new Date(); bt.setHours(parseInt(h), parseInt(m), 0); return bt > now; }); return `<div class="time-card ${isNext ? 'next-bus' : ''}">${time}</div>`; }).join('')}</div>` : `<div class="no-times">Nu sunt curse disponibile în acest moment.</div>`}
@@ -740,7 +770,17 @@ try {
 // --- HOMEPAGE ROUTE ---
 const routes = await loadRoutes();
 const indexHtml = `
-    <!DOCTYPE html><html lang="ro"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>RATBV Bus Times</title>
+    <!DOCTYPE html><html lang="ro"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RATBV Bus Times</title>
+    
+    <!-- iOS PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="RATBV Scraper">
+    
+    <!-- App Icon for iOS -->
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%236366f1' rx='20'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='white'>🚌</text></svg>">
+    
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #6366f1; min-height: 100vh; padding: 20px; } .container { max-width: 1000px; margin: 0 auto; } .header { background: white; border-radius: 20px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2); margin-bottom: 30px; } h1 { color: #333; font-size: 3em; margin-bottom: 10px; } .subtitle { color: #666; font-size: 1.2em; margin-bottom: 20px; } .dashboard-link { display: inline-block; background: #10b981; color: white; padding: 12px 25px; border-radius: 25px; text-decoration: none; font-weight: bold; transition: background 0.3s; } .dashboard-link:hover { background: #059669; } .routes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; } .route-card { background: white; border-radius: 15px; padding: 30px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); transition: transform 0.2s, box-shadow 0.2s; text-decoration: none; display: block; } .route-card:hover { transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15); } .route-card h2 { color: #333; font-size: 1.5em; margin-bottom: 10px; } .route-card p { color: #666; font-size: 1.1em; } .route-card p::before { content: "📍 "; } .empty-state { background: white; border-radius: 15px; padding: 60px 40px; text-align: center; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); } .empty-state h2 { color: #333; margin-bottom: 20px; } .empty-state p { color: #666; margin-bottom: 30px; } @media (max-width: 600px) { h1 { font-size: 2em; } .routes-grid { grid-template-columns: 1fr; } }
     </style></head><body><div class="container"><div class="header"><h1>🚌 RATBV Bus Times</h1><p class="subtitle">Orarul autobuzelor în timp real</p><a href="/dashboard" class="dashboard-link">⚙️ Dashboard Admin</a></div>
