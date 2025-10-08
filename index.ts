@@ -596,10 +596,8 @@ const server = Bun.serve({
             </script></body></html>`;
             return new Response(dashboardHtml, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
         }
-    }
 
-
-    const pathParts = url.pathname.split('/').filter(p => p);
+        const pathParts = url.pathname.split('/').filter(p => p);
     if(pathParts.length === 3) {
         const [routeNumber, direction, stationSlug] = pathParts;
 
@@ -704,3 +702,7 @@ const indexHtml = `
         : `<div class="empty-state"><h2>Nu există rute configurate</h2><p>Accesează dashboard-ul pentru a adăuga prima rută</p><a href="/dashboard" class="dashboard-link">Mergi la Dashboard</a></div>`}
     </div></body></html>`;
 return new Response(indexHtml, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    }
+});
+
+console.log(`🚀 Server running on http://localhost:${server.port}`);
