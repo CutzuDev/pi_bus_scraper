@@ -54,7 +54,32 @@ interface LineMetadata {
 
 async function scrapeLineMetadata(masterUrl: string): Promise<LineMetadata> {
     const chromeOptions = new ChromeOptions();
-    chromeOptions.addArguments('--headless', '--no-sandbox', '--disable-dev-shm-usage');
+    chromeOptions.addArguments(
+        '--headless=new',
+        '--no-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-software-rasterizer',
+        '--disable-extensions',
+        '--disable-background-networking',
+        '--disable-default-apps',
+        '--disable-sync',
+        '--metrics-recording-only',
+        '--mute-audio',
+        '--no-first-run',
+        '--disable-logging',
+        '--disable-permissions-api',
+        '--disable-notifications',
+        '--disable-infobars',
+        '--disable-translate',
+        '--disable-features=TranslateUI,BlinkGenPropertyTrees',
+        '--js-flags=--max-old-space-size=256',
+        '--single-process',
+        '--disable-crash-reporter',
+        '--disable-in-process-stack-traces',
+        '--window-size=1280,720',
+        '--blink-settings=imagesEnabled=false'
+    );
     const service = new ServiceBuilder(CHROMEDRIVER_PATH);
 
     const driver = await new Builder()
@@ -102,10 +127,36 @@ async function scrapeLineMetadata(masterUrl: string): Promise<LineMetadata> {
 
 async function scrapeBusTimes(url: string): Promise<string[]> {
     const options = new ChromeOptions();
-    options.addArguments('--headless', '--no-sandbox', '--disable-dev-shm-usage');
+    options.addArguments(
+        '--headless=new',
+        '--no-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-software-rasterizer',
+        '--disable-extensions',
+        '--disable-background-networking',
+        '--disable-default-apps',
+        '--disable-sync',
+        '--metrics-recording-only',
+        '--mute-audio',
+        '--no-first-run',
+        '--disable-logging',
+        '--disable-permissions-api',
+        '--disable-notifications',
+        '--disable-infobars',
+        '--disable-translate',
+        '--disable-features=TranslateUI,BlinkGenPropertyTrees',
+        '--js-flags=--max-old-space-size=256',
+        '--single-process',
+        '--disable-crash-reporter',
+        '--disable-in-process-stack-traces',
+        '--window-size=1280,720',
+        '--blink-settings=imagesEnabled=false'
+    );
 
     const service = new ServiceBuilder(CHROMEDRIVER_PATH);
 
+    let driver;
     try {
         driver = await new Builder()
             .forBrowser(Browser.CHROME)
