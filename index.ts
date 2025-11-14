@@ -1,7 +1,7 @@
-import { Builder, Browser, By, WebDriver } from 'selenium-webdriver';
-import { Options as ChromeOptions, ServiceBuilder } from 'selenium-webdriver/chrome';
-import { readFile, writeFile } from 'fs/promises';
+import { readfile, writefile } from 'fs/promises';
 import { join } from 'path';
+import { Options as ChromeOptions, ServiceBuilder } from 'selenium-webdriver/chrome';
+import { Builder, Browser, By } from 'selenium-webdriver';
 
 // --- CONFIGURATION & TYPES ---
 
@@ -105,7 +105,6 @@ async function scrapeBusTimes(url: string): Promise<string[]> {
     options.addArguments('--headless', '--no-sandbox', '--disable-dev-shm-usage');
 
     const service = new ServiceBuilder(CHROMEDRIVER_PATH);
-    let driver: WebDriver | null = null;
 
     try {
         driver = await new Builder()
@@ -790,6 +789,7 @@ const indexHtml = `
     ${routes.length > 0 ? `<div class="routes-grid">${routes.map(route => `<a href="/${route.routeNumber}/${route.direction}/${route.stationSlug}" class="route-card"><h2>${route.routeNumber.toUpperCase()}</h2><p>${route.stationName}</p>${route.directionFrom && route.directionTo ? `<p style="color: #6366f1; font-size: 0.9em; margin-top: 8px;">🚏 ${route.directionFrom} → ${route.directionTo}</p>` : ''}</a>`).join('')}</div>`
         : `<div class="empty-state"><h2>Nu există rute configurate</h2><p>Accesează dashboard-ul pentru a adăuga prima rută</p><a href="/dashboard" class="dashboard-link">Mergi la Dashboard</a></div>`}
     </div></body></html>`;
+return new Response(indexHtml, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
 return new Response(indexHtml, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
     }
 });
