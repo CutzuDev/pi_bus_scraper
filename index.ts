@@ -1,4 +1,4 @@
-import { readfile, writefile } from 'fs/promises';
+import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { Options as ChromeOptions, ServiceBuilder } from 'selenium-webdriver/chrome';
 import { Builder, Browser, By } from 'selenium-webdriver';
